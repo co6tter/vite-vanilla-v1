@@ -13,7 +13,7 @@ class DiaryApp {
   private titleInput: HTMLInputElement;
   private contentInput: HTMLTextAreaElement;
   private diaryList: HTMLElement;
-  private editingId: string | null = null;
+  private editingId: string | undefined = undefined;
 
   constructor() {
     this.form = document.getElementById('diary-form') as HTMLFormElement;
@@ -45,7 +45,7 @@ class DiaryApp {
     const title = this.titleInput.value.trim();
     const content = this.contentInput.value.trim();
 
-    if (!title || !content) {
+    if (!(title && content)) {
       alert('タイトルと内容を入力してください');
       return;
     }
@@ -112,7 +112,7 @@ class DiaryApp {
   }
 
   private cancelEdit() {
-    this.editingId = null;
+    this.editingId = undefined;
     this.clearForm();
     this.updateFormForEditing();
   }
@@ -127,13 +127,16 @@ class DiaryApp {
       submitButton.textContent = '更新する';
       submitButton.className =
         'w-full bg-green-500 text-white py-2 px-4 rounded-md hover:bg-green-600 transition duration-200';
-      formTitle.innerHTML =
-        '日記を編集 <button id="cancel-edit" class="ml-2 text-sm bg-gray-500 text-white px-2 py-1 rounded hover:bg-gray-600">キャンセル</button>';
 
-      const cancelButton = document.getElementById('cancel-edit');
-      if (cancelButton) {
-        cancelButton.addEventListener('click', () => this.cancelEdit());
-      }
+      formTitle.textContent = '日記を編集 ';
+      const cancelButton = document.createElement('button');
+      cancelButton.id = 'cancel-edit';
+      cancelButton.textContent = 'キャンセル';
+      cancelButton.className =
+        'ml-2 text-sm bg-gray-500 text-white px-2 py-1 rounded hover:bg-gray-600';
+      cancelButton.addEventListener('click', () => this.cancelEdit());
+
+      formTitle.appendChild(cancelButton);
     } else {
       submitButton.textContent = '保存する';
       submitButton.className =
@@ -154,80 +157,84 @@ class DiaryApp {
   private loadEntries() {
     const stored = localStorage.getItem('diary-entries');
     if (stored) {
-      this.entries = JSON.parse(stored);
+      try {
+        this.entries = JSON.parse(stored);
+      } catch (error) {
+        console.error('Error parsing diary entries:', error);
+      }
     }
   }
 
   private renderEntries() {
+    this.diaryList.innerHTML = '';
     if (this.entries.length === 0) {
-      this.diaryList.innerHTML = `
-        <div class="text-center text-gray-500 py-8">
-          <p class="text-lg">まだ日記がありません</p>
-          <p class="text-sm">上のフォームから最初の日記を書いてみましょう！</p>
-        </div>
-      `;
+      const emptyDiv = document.createElement('div');
+      emptyDiv.className = 'text-center text-gray-500 py-8';
+
+      const titleP = document.createElement('p');
+      titleP.className = 'text-lg';
+      titleP.textContent = 'まだ日記がありません';
+
+      const subtitleP = document.createElement('p');
+      subtitleP.className = 'text-sm';
+      subtitleP.textContent = '上のフォームから最初の日記を書いてみましょう！';
+
+      emptyDiv.appendChild(titleP);
+      emptyDiv.appendChild(subtitleP);
+      this.diaryList.appendChild(emptyDiv);
       return;
     }
 
-    this.diaryList.innerHTML = this.entries
-      .map(
-        entry => `
-      <div class="border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow">
-        <div class="flex justify-between items-start mb-2">
-          <h3 class="text-lg font-medium text-gray-800">${this.escapeHtml(
-            entry.title
-          )}</h3>
-          <div class="flex space-x-2">
-            <button 
-              onclick="app.handleEditEntry('${entry.id}')"
-              class="text-blue-500 hover:text-blue-700 text-sm px-2 py-1 rounded transition-colors"
-              title="編集"
-            >
-              ✏️
-            </button>
-            <button 
-              onclick="app.handleDeleteEntry('${entry.id}')"
-              class="text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded transition-colors"
-              title="削除"
-            >
-              🗑️
-            </button>
-          </div>
-        </div>
-        <p class="text-gray-600 text-sm mb-2">${entry.date}</p>
-        <p class="text-gray-700 leading-relaxed whitespace-pre-wrap">${this.escapeHtml(
-          entry.content
-        )}</p>
-      </div>
-    `
-      )
-      .join('');
-  }
+    this.entries.forEach(entry => {
+      const entryDiv = document.createElement('div');
+      entryDiv.className =
+        'border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-shadow';
 
-  private escapeHtml(text: string): string {
-    const div = document.createElement('div');
-    div.textContent = text;
-    return div.innerHTML;
-  }
+      const headerDiv = document.createElement('div');
+      headerDiv.className = 'flex justify-between items-start mb-2';
 
-  public handleEditEntry(id: string) {
-    this.editEntry(id);
-  }
+      const titleH3 = document.createElement('h3');
+      titleH3.className = 'text-lg font-medium text-gray-800';
+      titleH3.textContent = entry.title;
 
-  public handleDeleteEntry(id: string) {
-    this.deleteEntry(id);
-  }
+      const buttonsDiv = document.createElement('div');
+      buttonsDiv.className = 'flex space-x-2';
 
-  public handleCancelEdit() {
-    this.cancelEdit();
+      const editButton = document.createElement('button');
+      editButton.className =
+        'text-blue-500 hover:text-blue-700 text-sm px-2 py-1 rounded transition-colors';
+      editButton.title = '編集';
+      editButton.textContent = '✏️';
+      editButton.addEventListener('click', () => this.editEntry(entry.id));
+
+      const deleteButton = document.createElement('button');
+      deleteButton.className =
+        'text-red-500 hover:text-red-700 text-sm px-2 py-1 rounded transition-colors';
+      deleteButton.title = '削除';
+      deleteButton.textContent = '🗑️';
+      deleteButton.addEventListener('click', () => this.deleteEntry(entry.id));
+
+      buttonsDiv.appendChild(editButton);
+      buttonsDiv.appendChild(deleteButton);
+
+      headerDiv.appendChild(titleH3);
+      headerDiv.appendChild(buttonsDiv);
+
+      const dateP = document.createElement('p');
+      dateP.className = 'text-gray-600 text-sm mb-2';
+      dateP.textContent = entry.date;
+
+      const contentP = document.createElement('p');
+      contentP.className = 'text-gray-700 leading-relaxed whitespace-pre-wrap';
+      contentP.textContent = entry.content;
+
+      entryDiv.appendChild(headerDiv);
+      entryDiv.appendChild(dateP);
+      entryDiv.appendChild(contentP);
+
+      this.diaryList.appendChild(entryDiv);
+    });
   }
 }
 
-declare global {
-  interface Window {
-    app: DiaryApp;
-  }
-}
-
-const app = new DiaryApp();
-window.app = app;
+new DiaryApp();
