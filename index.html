@@ -51,7 +51,10 @@
             <label class="block text-sm font-medium text-gray-700 mb-2">
               今日の気分
             </label>
-            <div id="mood-selector" class="flex justify-center gap-2 flex-wrap"></div>
+            <div
+              id="mood-selector"
+              class="flex justify-center gap-2 flex-wrap"
+            ></div>
           </div>
           <button
             type="submit"
@@ -67,7 +70,10 @@
         <div class="space-y-4">
           <div class="flex flex-col md:flex-row gap-4">
             <div class="flex-1">
-              <label for="search-input" class="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                for="search-input"
+                class="block text-sm font-medium text-gray-700 mb-1"
+              >
                 キーワード検索
               </label>
               <input
@@ -78,7 +84,10 @@
               />
             </div>
             <div class="flex-1">
-              <label for="date-from" class="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                for="date-from"
+                class="block text-sm font-medium text-gray-700 mb-1"
+              >
                 期間
               </label>
               <div class="flex gap-2">
@@ -116,6 +125,57 @@
       <div class="bg-white rounded-lg shadow-md p-6 mb-6">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">気分チャート</h2>
         <div id="mood-chart"></div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">データ管理</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium text-gray-600">エクスポート</h3>
+            <button
+              id="export-json"
+              class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-200"
+            >
+              📄 JSON形式
+            </button>
+            <button
+              id="export-pdf"
+              class="w-full px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-200"
+            >
+              📕 PDF形式
+            </button>
+          </div>
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium text-gray-600">バックアップ</h3>
+            <button
+              id="backup-data"
+              class="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition duration-200"
+            >
+              💾 バックアップ
+            </button>
+            <button
+              id="restore-data"
+              class="w-full px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition duration-200"
+            >
+              🔄 復元
+            </button>
+          </div>
+          <div class="space-y-2">
+            <h3 class="text-sm font-medium text-gray-600">同期・インポート</h3>
+            <button
+              id="import-data"
+              class="w-full px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition duration-200"
+            >
+              📥 インポート
+            </button>
+            <button
+              id="sync-cloud"
+              class="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-200"
+            >
+              ☁️ クラウド同期
+            </button>
+          </div>
+        </div>
       </div>
 
       <div class="bg-white rounded-lg shadow-md p-6">
