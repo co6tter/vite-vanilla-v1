@@ -12,6 +12,16 @@ interface DiaryEntry {
   content: string;
   date: string;
   mood?: number;
+  images?: string[];
+  attachments?: FileAttachment[];
+}
+
+interface FileAttachment {
+  id: string;
+  name: string;
+  type: string;
+  size: number;
+  data: string;
 }
 
 class DiaryApp {
@@ -30,6 +40,10 @@ class DiaryApp {
   private currentSearchTerm: string = '';
   private moodButtons: HTMLElement[] = [];
   private selectedMood: number | undefined = undefined;
+  private selectedImages: string[] = [];
+  private selectedAttachments: FileAttachment[] = [];
+  private imageInput: HTMLInputElement;
+  private fileInput: HTMLInputElement;
 
   private readonly moodRatings: MoodRating[] = [
     { value: 1, emoji: '😢', label: 'とても悲しい' },
@@ -61,10 +75,15 @@ class DiaryApp {
     this.searchResultsCount = document.getElementById(
       'search-results-count'
     ) as HTMLElement;
+    this.imageInput = document.getElementById(
+      'image-input'
+    ) as HTMLInputElement;
+    this.fileInput = document.getElementById('file-input') as HTMLInputElement;
 
     this.loadEntries();
     this.bindEvents();
     this.initializeMoodSelector();
+    this.initializeFileInputs();
     this.initializeExportFeatures();
     this.updateMoodFeatures();
     this.applyFilters();
@@ -117,6 +136,8 @@ class DiaryApp {
         weekday: 'long',
       }),
       mood: this.selectedMood,
+      images: [...this.selectedImages],
+      attachments: [...this.selectedAttachments],
     };
 
     this.entries.unshift(entry);
@@ -141,7 +162,12 @@ class DiaryApp {
       this.titleInput.value = entry.title;
       this.contentInput.value = entry.content;
       this.selectedMood = entry.mood;
+      this.selectedImages = entry.images ? [...entry.images] : [];
+      this.selectedAttachments = entry.attachments
+        ? [...entry.attachments]
+        : [];
       this.updateMoodSelection();
+      this.updateFileDisplay();
       this.editingId = id;
       this.updateFormForEditing();
       window.scrollTo(0, 0);
@@ -166,6 +192,8 @@ class DiaryApp {
         title,
         content,
         mood: this.selectedMood,
+        images: [...this.selectedImages],
+        attachments: [...this.selectedAttachments],
       };
       this.saveEntries();
       this.updateMoodFeatures();
@@ -212,7 +240,10 @@ class DiaryApp {
     this.titleInput.value = '';
     this.contentInput.value = '';
     this.selectedMood = undefined;
+    this.selectedImages = [];
+    this.selectedAttachments = [];
     this.updateMoodSelection();
+    this.updateFileDisplay();
   }
 
   private saveEntries() {
@@ -430,6 +461,14 @@ class DiaryApp {
       entryDiv.appendChild(dateP);
       entryDiv.appendChild(moodP);
       entryDiv.appendChild(contentP);
+
+      if (entry.images && entry.images.length > 0) {
+        this.appendImagesDisplay(entryDiv, entry.images);
+      }
+
+      if (entry.attachments && entry.attachments.length > 0) {
+        this.appendAttachmentsDisplay(entryDiv, entry.attachments);
+      }
 
       this.diaryList.appendChild(entryDiv);
     });
@@ -1030,6 +1069,293 @@ class DiaryApp {
     alert(
       'クラウド同期機能は準備中です。将来的にGoogleDrive、Dropbox等との同期を予定しています。'
     );
+  }
+
+  private initializeFileInputs() {
+    this.imageInput?.addEventListener('change', e => this.handleImageUpload(e));
+    this.fileInput?.addEventListener('change', e => this.handleFileUpload(e));
+  }
+
+  private async handleImageUpload(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      if (!file.type.startsWith('image/')) {
+        alert(`${file.name} は画像ファイルではありません`);
+        continue;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        alert(`${file.name} は5MBを超えています`);
+        continue;
+      }
+
+      try {
+        const base64 = await this.fileToBase64(file);
+        this.selectedImages.push(base64);
+        this.updateFileDisplay();
+      } catch (error) {
+        console.error('画像読み込みエラー:', error);
+        alert(`${file.name} の読み込みに失敗しました`);
+      }
+    }
+    input.value = '';
+  }
+
+  private async handleFileUpload(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const files = input.files;
+    if (!files) return;
+
+    for (const file of Array.from(files)) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert(`${file.name} は10MBを超えています`);
+        continue;
+      }
+
+      try {
+        const base64 = await this.fileToBase64(file);
+        const attachment: FileAttachment = {
+          id:
+            Date.now().toString() + Math.random().toString(36).substring(2, 11),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: base64,
+        };
+        this.selectedAttachments.push(attachment);
+        this.updateFileDisplay();
+      } catch (error) {
+        console.error('ファイル読み込みエラー:', error);
+        alert(`${file.name} の読み込みに失敗しました`);
+      }
+    }
+    input.value = '';
+  }
+
+  private fileToBase64(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  private updateFileDisplay() {
+    this.updateImagePreview();
+    this.updateAttachmentList();
+  }
+
+  private updateImagePreview() {
+    const container = document.getElementById('image-preview');
+    if (!container) return;
+
+    container.textContent = '';
+
+    if (this.selectedImages.length === 0) {
+      container.className = 'hidden';
+      return;
+    }
+
+    container.className = 'mt-2 grid grid-cols-2 md:grid-cols-3 gap-2';
+
+    this.selectedImages.forEach((imageData, index) => {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'relative group';
+
+      const img = document.createElement('img');
+      img.src = imageData;
+      img.className = 'w-full h-24 object-cover rounded border';
+      img.alt = `画像 ${index + 1}`;
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className =
+        'absolute top-1 right-1 bg-red-500 text-white w-6 h-6 rounded-full text-xs hover:bg-red-600 opacity-0 group-hover:opacity-100 transition-opacity';
+      removeBtn.textContent = '×';
+      removeBtn.addEventListener('click', () => this.removeImage(index));
+
+      wrapper.appendChild(img);
+      wrapper.appendChild(removeBtn);
+      container.appendChild(wrapper);
+    });
+  }
+
+  private updateAttachmentList() {
+    const container = document.getElementById('attachment-list');
+    if (!container) return;
+
+    container.textContent = '';
+
+    if (this.selectedAttachments.length === 0) {
+      container.className = 'hidden';
+      return;
+    }
+
+    container.className = 'mt-2 space-y-2';
+
+    this.selectedAttachments.forEach((attachment, index) => {
+      const div = document.createElement('div');
+      div.className =
+        'flex items-center justify-between p-2 bg-gray-50 rounded border';
+
+      const info = document.createElement('div');
+      info.className = 'flex-1';
+
+      const name = document.createElement('div');
+      name.className = 'text-sm font-medium text-gray-700';
+      name.textContent = attachment.name;
+
+      const meta = document.createElement('div');
+      meta.className = 'text-xs text-gray-500';
+      meta.textContent = `${(attachment.size / 1024).toFixed(1)}KB`;
+
+      info.appendChild(name);
+      info.appendChild(meta);
+
+      const removeBtn = document.createElement('button');
+      removeBtn.className = 'text-red-500 hover:text-red-700 text-sm px-2 py-1';
+      removeBtn.textContent = '削除';
+      removeBtn.addEventListener('click', () => this.removeAttachment(index));
+
+      div.appendChild(info);
+      div.appendChild(removeBtn);
+      container.appendChild(div);
+    });
+  }
+
+  private removeImage(index: number) {
+    this.selectedImages.splice(index, 1);
+    this.updateFileDisplay();
+  }
+
+  private removeAttachment(index: number) {
+    this.selectedAttachments.splice(index, 1);
+    this.updateFileDisplay();
+  }
+
+  private appendImagesDisplay(container: HTMLElement, images: string[]) {
+    const imagesDiv = document.createElement('div');
+    imagesDiv.className = 'mt-3';
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'text-sm font-medium text-gray-600 mb-2';
+    labelDiv.textContent = '📷 画像';
+
+    const imageGrid = document.createElement('div');
+    imageGrid.className = 'grid grid-cols-2 md:grid-cols-3 gap-2';
+
+    images.forEach((imageData, index) => {
+      const imageWrapper = document.createElement('div');
+      imageWrapper.className = 'relative group cursor-pointer';
+
+      const img = document.createElement('img');
+      img.src = imageData;
+      img.className =
+        'w-full h-24 object-cover rounded border hover:shadow-md transition-shadow';
+      img.alt = `画像 ${index + 1}`;
+      img.addEventListener('click', () => this.showImageModal(imageData));
+
+      imageWrapper.appendChild(img);
+      imageGrid.appendChild(imageWrapper);
+    });
+
+    imagesDiv.appendChild(labelDiv);
+    imagesDiv.appendChild(imageGrid);
+    container.appendChild(imagesDiv);
+  }
+
+  private appendAttachmentsDisplay(
+    container: HTMLElement,
+    attachments: FileAttachment[]
+  ) {
+    const attachmentsDiv = document.createElement('div');
+    attachmentsDiv.className = 'mt-3';
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'text-sm font-medium text-gray-600 mb-2';
+    labelDiv.textContent = '📎 添付ファイル';
+
+    const attachmentsList = document.createElement('div');
+    attachmentsList.className = 'space-y-1';
+
+    attachments.forEach(attachment => {
+      const attachmentDiv = document.createElement('div');
+      attachmentDiv.className =
+        'flex items-center justify-between p-2 bg-gray-50 rounded border hover:bg-gray-100 transition-colors';
+
+      const infoDiv = document.createElement('div');
+      infoDiv.className = 'flex-1';
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'text-sm font-medium text-gray-700';
+      nameSpan.textContent = attachment.name;
+
+      const metaSpan = document.createElement('span');
+      metaSpan.className = 'text-xs text-gray-500 ml-2';
+      metaSpan.textContent = `(${(attachment.size / 1024).toFixed(1)}KB)`;
+
+      infoDiv.appendChild(nameSpan);
+      infoDiv.appendChild(metaSpan);
+
+      const downloadBtn = document.createElement('button');
+      downloadBtn.className =
+        'text-blue-500 hover:text-blue-700 text-sm px-2 py-1 rounded transition-colors';
+      downloadBtn.textContent = 'ダウンロード';
+      downloadBtn.addEventListener('click', () =>
+        this.downloadAttachment(attachment)
+      );
+
+      attachmentDiv.appendChild(infoDiv);
+      attachmentDiv.appendChild(downloadBtn);
+      attachmentsList.appendChild(attachmentDiv);
+    });
+
+    attachmentsDiv.appendChild(labelDiv);
+    attachmentsDiv.appendChild(attachmentsList);
+    container.appendChild(attachmentsDiv);
+  }
+
+  private showImageModal(imageData: string) {
+    const modal = document.createElement('div');
+    modal.className =
+      'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+
+    const img = document.createElement('img');
+    img.src = imageData;
+    img.className = 'max-w-full max-h-full object-contain';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className =
+      'absolute top-4 right-4 text-white text-2xl bg-black bg-opacity-50 w-10 h-10 rounded-full hover:bg-opacity-75 transition-all';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+
+    modal.addEventListener('click', e => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
+
+    modal.appendChild(img);
+    modal.appendChild(closeBtn);
+    document.body.appendChild(modal);
+  }
+
+  private downloadAttachment(attachment: FileAttachment) {
+    try {
+      const link = document.createElement('a');
+      link.href = attachment.data;
+      link.download = attachment.name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (error) {
+      console.error('ダウンロードエラー:', error);
+      alert('ファイルのダウンロードに失敗しました');
+    }
   }
 
   private initializeExportFeatures() {
