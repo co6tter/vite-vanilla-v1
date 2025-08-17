@@ -47,6 +47,12 @@
               placeholder="今日はどんな一日でしたか？"
             ></textarea>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              今日の気分
+            </label>
+            <div id="mood-selector" class="flex justify-center gap-2 flex-wrap"></div>
+          </div>
           <button
             type="submit"
             class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-200"
@@ -100,6 +106,16 @@
             </button>
           </div>
         </div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">気分統計</h2>
+        <div id="mood-stats"></div>
+      </div>
+
+      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">気分チャート</h2>
+        <div id="mood-chart"></div>
       </div>
 
       <div class="bg-white rounded-lg shadow-md p-6">
