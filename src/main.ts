@@ -6,6 +6,15 @@ interface MoodRating {
   label: string;
 }
 
+interface DiaryTemplate {
+  id: string;
+  name: string;
+  title: string;
+  content: string;
+  type: 'preset' | 'custom';
+  createdAt: string;
+}
+
 interface DiaryEntry {
   id: string;
   title: string;
@@ -44,6 +53,11 @@ class DiaryApp {
   private selectedAttachments: FileAttachment[] = [];
   private imageInput: HTMLInputElement;
   private fileInput: HTMLInputElement;
+  // テンプレート関連
+  private templates: DiaryTemplate[] = [];
+  private templateSelector: HTMLSelectElement;
+  private saveTemplateButton: HTMLButtonElement;
+  private manageTemplatesButton: HTMLButtonElement;
 
   private readonly moodRatings: MoodRating[] = [
     { value: 1, emoji: '😢', label: 'とても悲しい' },
@@ -51,6 +65,51 @@ class DiaryApp {
     { value: 3, emoji: '😊', label: '普通' },
     { value: 4, emoji: '😄', label: '嬉しい' },
     { value: 5, emoji: '😍', label: 'とても嬉しい' },
+  ];
+  private readonly presetTemplates: DiaryTemplate[] = [
+    {
+      id: 'daily-reflection',
+      name: '日々の振り返り',
+      title: '今日の振り返り',
+      content:
+        '今日は何をしましたか：\n\n学んだこと：\n\n感謝したいこと：\n\n明日に向けて：',
+      type: 'preset',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'gratitude-diary',
+      name: '感謝日記',
+      title: '今日の感謝',
+      content: '感謝していること（3つ）：\n1. \n2. \n3. \n\nその理由：',
+      type: 'preset',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'work-log',
+      name: '業務日報',
+      title: '業務日報 - {{DATE}}',
+      content:
+        '今日の作業内容：\n\n成果・達成したこと：\n\n課題・問題点：\n\n明日の予定：',
+      type: 'preset',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'health-log',
+      name: '健康記録',
+      title: '健康記録',
+      content: '体調：\n\n運動：\n\n食事：\n\n睡眠：\n\nその他メモ：',
+      type: 'preset',
+      createdAt: new Date().toISOString(),
+    },
+    {
+      id: 'learning-log',
+      name: '学習記録',
+      title: '学習記録',
+      content:
+        '学習内容：\n\n新しく覚えたこと：\n\n理解度（1-5）：\n\n次回の目標：',
+      type: 'preset',
+      createdAt: new Date().toISOString(),
+    },
   ];
 
   constructor() {
@@ -80,10 +139,23 @@ class DiaryApp {
     ) as HTMLInputElement;
     this.fileInput = document.getElementById('file-input') as HTMLInputElement;
 
+    // テンプレート要素の初期化
+    this.templateSelector = document.getElementById(
+      'template-selector'
+    ) as HTMLSelectElement;
+    this.saveTemplateButton = document.getElementById(
+      'save-template'
+    ) as HTMLButtonElement;
+    this.manageTemplatesButton = document.getElementById(
+      'manage-templates'
+    ) as HTMLButtonElement;
+
     this.loadEntries();
+    this.loadTemplates();
     this.bindEvents();
     this.initializeMoodSelector();
     this.initializeFileInputs();
+    this.initializeTemplateFeatures();
     this.initializeExportFeatures();
     this.updateMoodFeatures();
     this.applyFilters();
@@ -1372,6 +1444,441 @@ class DiaryApp {
     restoreBtn?.addEventListener('click', () => this.restoreData());
     importBtn?.addEventListener('click', () => this.importFromFile());
     syncBtn?.addEventListener('click', () => this.syncWithCloud());
+  }
+
+  // テンプレート機能の実装
+  private loadTemplates() {
+    const stored = localStorage.getItem('diary-templates');
+    if (stored) {
+      try {
+        const customTemplates = JSON.parse(stored);
+        this.templates = [...this.presetTemplates, ...customTemplates];
+      } catch (error) {
+        console.error('Error parsing templates:', error);
+        this.templates = [...this.presetTemplates];
+      }
+    } else {
+      this.templates = [...this.presetTemplates];
+    }
+  }
+
+  private saveTemplates() {
+    const customTemplates = this.templates.filter(t => t.type === 'custom');
+    localStorage.setItem('diary-templates', JSON.stringify(customTemplates));
+  }
+
+  private initializeTemplateFeatures() {
+    this.populateTemplateSelector();
+
+    this.templateSelector?.addEventListener('change', () => {
+      this.applyTemplate();
+    });
+
+    this.saveTemplateButton?.addEventListener('click', () => {
+      this.saveCurrentAsTemplate();
+    });
+
+    this.manageTemplatesButton?.addEventListener('click', () => {
+      this.openTemplateManager();
+    });
+  }
+
+  private populateTemplateSelector() {
+    if (!this.templateSelector) return;
+
+    // 既存のオプションをクリア（最初のデフォルトオプション以外）
+    while (this.templateSelector.children.length > 1) {
+      this.templateSelector.removeChild(this.templateSelector.lastChild!);
+    }
+
+    // プリセットテンプレート
+    const presetGroup = document.createElement('optgroup');
+    presetGroup.label = 'プリセット';
+
+    this.templates
+      .filter(t => t.type === 'preset')
+      .forEach(template => {
+        const option = document.createElement('option');
+        option.value = template.id;
+        option.textContent = template.name;
+        presetGroup.appendChild(option);
+      });
+
+    this.templateSelector.appendChild(presetGroup);
+
+    // カスタムテンプレート
+    const customTemplates = this.templates.filter(t => t.type === 'custom');
+    if (customTemplates.length > 0) {
+      const customGroup = document.createElement('optgroup');
+      customGroup.label = 'カスタム';
+
+      customTemplates.forEach(template => {
+        const option = document.createElement('option');
+        option.value = template.id;
+        option.textContent = template.name;
+        customGroup.appendChild(option);
+      });
+
+      this.templateSelector.appendChild(customGroup);
+    }
+  }
+
+  private applyTemplate() {
+    const selectedId = this.templateSelector?.value;
+    if (!selectedId) return;
+
+    const template = this.templates.find(t => t.id === selectedId);
+    if (!template) return;
+
+    // 現在の内容があるかチェック
+    const hasContent =
+      this.titleInput.value.trim() || this.contentInput.value.trim();
+    if (hasContent) {
+      const confirmed = confirm('現在の内容が上書きされます。続行しますか？');
+      if (!confirmed) {
+        this.templateSelector.value = '';
+        return;
+      }
+    }
+
+    // テンプレートを適用
+    let title = template.title;
+    let content = template.content;
+
+    // 動的変数を置換
+    const now = new Date();
+    const dateStr = now.toLocaleDateString('ja-JP', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    title = title.replace('{{DATE}}', dateStr);
+    content = content.replace('{{DATE}}', dateStr);
+
+    this.titleInput.value = title;
+    this.contentInput.value = content;
+
+    // フォーカスを内容エリアに移動
+    this.contentInput.focus();
+    this.contentInput.setSelectionRange(
+      this.contentInput.value.length,
+      this.contentInput.value.length
+    );
+  }
+
+  private saveCurrentAsTemplate() {
+    const title = this.titleInput.value.trim();
+    const content = this.contentInput.value.trim();
+
+    if (!title || !content) {
+      alert('タイトルと内容を入力してからテンプレートとして保存してください。');
+      return;
+    }
+
+    const templateName = prompt('テンプレート名を入力してください:', title);
+    if (!templateName) return;
+
+    // 同名のテンプレートが既に存在するかチェック
+    const existingTemplate = this.templates.find(
+      t => t.name === templateName && t.type === 'custom'
+    );
+    if (existingTemplate) {
+      const confirmed = confirm(
+        '同名のテンプレートが既に存在します。上書きしますか？'
+      );
+      if (!confirmed) return;
+
+      // 既存のテンプレートを更新
+      existingTemplate.title = title;
+      existingTemplate.content = content;
+      existingTemplate.createdAt = new Date().toISOString();
+    } else {
+      // 新しいテンプレートを作成
+      const newTemplate: DiaryTemplate = {
+        id: Date.now().toString() + Math.random().toString(36).substring(2, 11),
+        name: templateName,
+        title: title,
+        content: content,
+        type: 'custom',
+        createdAt: new Date().toISOString(),
+      };
+      this.templates.push(newTemplate);
+    }
+
+    this.saveTemplates();
+    this.populateTemplateSelector();
+    alert('テンプレートを保存しました。');
+  }
+
+  private openTemplateManager() {
+    this.showTemplateManagerModal();
+  }
+
+  private showTemplateManagerModal() {
+    const modal = document.createElement('div');
+    modal.className =
+      'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+
+    const modalContent = document.createElement('div');
+    modalContent.className =
+      'bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[80vh] overflow-hidden';
+
+    const header = document.createElement('div');
+    header.className = 'p-6 border-b border-gray-200';
+
+    const headerTitle = document.createElement('h2');
+    headerTitle.className = 'text-xl font-semibold text-gray-800';
+    headerTitle.textContent = 'テンプレート管理';
+
+    const closeBtn = document.createElement('button');
+    closeBtn.className =
+      'float-right text-gray-500 hover:text-gray-700 text-2xl leading-none';
+    closeBtn.textContent = '×';
+    closeBtn.addEventListener('click', () => document.body.removeChild(modal));
+
+    header.appendChild(headerTitle);
+    header.appendChild(closeBtn);
+
+    const body = document.createElement('div');
+    body.className = 'p-6 overflow-y-auto max-h-[60vh]';
+
+    const customTemplates = this.templates.filter(t => t.type === 'custom');
+
+    if (customTemplates.length === 0) {
+      const emptyMsg = document.createElement('p');
+      emptyMsg.className = 'text-gray-500 text-center py-8';
+      emptyMsg.textContent = 'カスタムテンプレートはまだありません。';
+      body.appendChild(emptyMsg);
+    } else {
+      customTemplates.forEach(template => {
+        const templateDiv = document.createElement('div');
+        templateDiv.className = 'border border-gray-200 rounded-lg p-4 mb-4';
+
+        const templateHeader = document.createElement('div');
+        templateHeader.className = 'flex justify-between items-start mb-2';
+
+        const templateName = document.createElement('h3');
+        templateName.className = 'font-medium text-gray-800';
+        templateName.textContent = template.name;
+
+        const templateActions = document.createElement('div');
+        templateActions.className = 'flex gap-2';
+
+        const editBtn = document.createElement('button');
+        editBtn.className =
+          'text-blue-500 hover:text-blue-700 text-sm px-2 py-1';
+        editBtn.textContent = '編集';
+        editBtn.addEventListener('click', () =>
+          this.editTemplate(template.id, modal)
+        );
+
+        const deleteBtn = document.createElement('button');
+        deleteBtn.className =
+          'text-red-500 hover:text-red-700 text-sm px-2 py-1';
+        deleteBtn.textContent = '削除';
+        deleteBtn.addEventListener('click', () =>
+          this.deleteTemplate(template.id, modal)
+        );
+
+        templateActions.appendChild(editBtn);
+        templateActions.appendChild(deleteBtn);
+
+        templateHeader.appendChild(templateName);
+        templateHeader.appendChild(templateActions);
+
+        const templatePreview = document.createElement('div');
+        templatePreview.className = 'text-sm text-gray-600';
+
+        const titlePreview = document.createElement('div');
+        titlePreview.className = 'font-medium mb-1';
+        titlePreview.textContent = `タイトル: ${template.title}`;
+
+        const contentPreview = document.createElement('div');
+        contentPreview.className = 'whitespace-pre-wrap';
+        contentPreview.textContent =
+          template.content.length > 100
+            ? template.content.substring(0, 100) + '...'
+            : template.content;
+
+        templatePreview.appendChild(titlePreview);
+        templatePreview.appendChild(contentPreview);
+
+        templateDiv.appendChild(templateHeader);
+        templateDiv.appendChild(templatePreview);
+        body.appendChild(templateDiv);
+      });
+    }
+
+    modalContent.appendChild(header);
+    modalContent.appendChild(body);
+    modal.appendChild(modalContent);
+
+    // モーダル外クリックで閉じる
+    modal.addEventListener('click', e => {
+      if (e.target === modal) {
+        document.body.removeChild(modal);
+      }
+    });
+
+    document.body.appendChild(modal);
+  }
+
+  private editTemplate(templateId: string, parentModal: HTMLElement) {
+    const template = this.templates.find(t => t.id === templateId);
+    if (!template || template.type !== 'custom') return;
+
+    document.body.removeChild(parentModal);
+
+    const modal = document.createElement('div');
+    modal.className =
+      'fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4';
+
+    const modalContent = document.createElement('div');
+    modalContent.className = 'bg-white rounded-lg shadow-xl max-w-2xl w-full';
+
+    const header = document.createElement('div');
+    header.className = 'p-6 border-b border-gray-200';
+
+    const headerTitle = document.createElement('h2');
+    headerTitle.className = 'text-xl font-semibold text-gray-800';
+    headerTitle.textContent = 'テンプレート編集';
+
+    header.appendChild(headerTitle);
+
+    const body = document.createElement('div');
+    body.className = 'p-6';
+
+    const form = document.createElement('div');
+    form.className = 'space-y-4';
+
+    // テンプレート名入力
+    const nameDiv = document.createElement('div');
+    const nameLabel = document.createElement('label');
+    nameLabel.className = 'block text-sm font-medium text-gray-700 mb-1';
+    nameLabel.textContent = 'テンプレート名';
+
+    const nameInput = document.createElement('input');
+    nameInput.type = 'text';
+    nameInput.className =
+      'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+    nameInput.value = template.name;
+
+    nameDiv.appendChild(nameLabel);
+    nameDiv.appendChild(nameInput);
+
+    // タイトル入力
+    const titleDiv = document.createElement('div');
+    const titleLabel = document.createElement('label');
+    titleLabel.className = 'block text-sm font-medium text-gray-700 mb-1';
+    titleLabel.textContent = 'タイトル';
+
+    const titleInput = document.createElement('input');
+    titleInput.type = 'text';
+    titleInput.className =
+      'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent';
+    titleInput.value = template.title;
+
+    titleDiv.appendChild(titleLabel);
+    titleDiv.appendChild(titleInput);
+
+    // 内容入力
+    const contentDiv = document.createElement('div');
+    const contentLabel = document.createElement('label');
+    contentLabel.className = 'block text-sm font-medium text-gray-700 mb-1';
+    contentLabel.textContent = '内容';
+
+    const contentTextarea = document.createElement('textarea');
+    contentTextarea.rows = 8;
+    contentTextarea.className =
+      'w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none';
+    contentTextarea.value = template.content;
+
+    contentDiv.appendChild(contentLabel);
+    contentDiv.appendChild(contentTextarea);
+
+    form.appendChild(nameDiv);
+    form.appendChild(titleDiv);
+    form.appendChild(contentDiv);
+
+    // ボタン
+    const buttonDiv = document.createElement('div');
+    buttonDiv.className = 'flex justify-end gap-2 mt-6';
+
+    const cancelBtn = document.createElement('button');
+    cancelBtn.className =
+      'px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition duration-200';
+    cancelBtn.textContent = 'キャンセル';
+    cancelBtn.addEventListener('click', () => {
+      document.body.removeChild(modal);
+      this.openTemplateManager();
+    });
+
+    const saveBtn = document.createElement('button');
+    saveBtn.className =
+      'px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-200';
+    saveBtn.textContent = '保存';
+    saveBtn.addEventListener('click', () => {
+      const newName = nameInput.value.trim();
+      const newTitle = titleInput.value.trim();
+      const newContent = contentTextarea.value.trim();
+
+      if (!newName || !newTitle || !newContent) {
+        alert('すべての項目を入力してください。');
+        return;
+      }
+
+      // 同名チェック（自分以外で）
+      const existingTemplate = this.templates.find(
+        t => t.name === newName && t.id !== templateId && t.type === 'custom'
+      );
+      if (existingTemplate) {
+        alert('同名のテンプレートが既に存在します。');
+        return;
+      }
+
+      template.name = newName;
+      template.title = newTitle;
+      template.content = newContent;
+      template.createdAt = new Date().toISOString();
+
+      this.saveTemplates();
+      this.populateTemplateSelector();
+
+      document.body.removeChild(modal);
+      this.openTemplateManager();
+      alert('テンプレートを更新しました。');
+    });
+
+    buttonDiv.appendChild(cancelBtn);
+    buttonDiv.appendChild(saveBtn);
+
+    body.appendChild(form);
+    body.appendChild(buttonDiv);
+
+    modalContent.appendChild(header);
+    modalContent.appendChild(body);
+    modal.appendChild(modalContent);
+
+    document.body.appendChild(modal);
+  }
+
+  private deleteTemplate(templateId: string, parentModal: HTMLElement) {
+    const template = this.templates.find(t => t.id === templateId);
+    if (!template || template.type !== 'custom') return;
+
+    const confirmed = confirm(
+      `テンプレート「${template.name}」を削除しますか？`
+    );
+    if (!confirmed) return;
+
+    this.templates = this.templates.filter(t => t.id !== templateId);
+    this.saveTemplates();
+    this.populateTemplateSelector();
+
+    document.body.removeChild(parentModal);
+    this.openTemplateManager();
+    alert('テンプレートを削除しました。');
   }
 }
 
