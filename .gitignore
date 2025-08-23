@@ -31,7 +31,7 @@ dist-ssr
 .LSOverride
 
 # Icon must end with two \r
-Icon
+Icon
 
 # Thumbnails
 ._*
@@ -248,3 +248,19 @@ dist
 .yarn/build-state.yml
 .yarn/install-state.gz
 .pnp.*
+
+# Serena設定
+# プロジェクト設定はコミット
+# .serena/project.yml
+
+# メモリーは選択的にコミット
+# 共有すべきメモリーは個別に git add
+.serena/memories/*
+!.serena/memories/project-architecture.md
+!.serena/memories/coding-standards.md
+!.serena/memories/build-instructions.md
+
+# 一時ファイルやキャッシュは除外
+.serena/cache/
+.serena/index/
+.serena/*.log

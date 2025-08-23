@@ -34,6 +34,33 @@
             />
           </div>
           <div>
+            <label class="block text-sm font-medium text-gray-700 mb-2">
+              📄 テンプレート
+            </label>
+            <div class="flex gap-2 mb-3">
+              <select
+                id="template-selector"
+                class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">テンプレートを選択...</option>
+              </select>
+              <button
+                id="save-template"
+                type="button"
+                class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition duration-200 text-sm"
+              >
+                保存
+              </button>
+              <button
+                id="manage-templates"
+                type="button"
+                class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-200 text-sm"
+              >
+                管理
+              </button>
+            </div>
+          </div>
+          <div>
             <label
               for="diary-content"
               class="block text-sm font-medium text-gray-700 mb-1"
