@@ -616,6 +616,283 @@ class DiaryApp {
     };
   }
 
+  // 投稿頻度統計を取得
+  private getPostFrequencyStats() {
+    const frequencyData: { [key: string]: number } = {};
+    const today = new Date();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // 過去30日間の日付を生成
+    for (let i = 0; i <= 30; i++) {
+      const d = new Date(thirtyDaysAgo.getTime() + i * 24 * 60 * 60 * 1000);
+      const dateStr = d.toISOString().split('T')[0];
+      frequencyData[dateStr] = 0;
+    }
+
+    // 各エントリの投稿日をカウント（日本語日付対応）
+    this.entries.forEach(entry => {
+      try {
+        let entryDate: Date;
+
+        // 日本語形式の日付かどうかチェック
+        if (
+          entry.date.includes('年') &&
+          entry.date.includes('月') &&
+          entry.date.includes('日')
+        ) {
+          entryDate = this.parseJapaneseDate(entry.date);
+        } else {
+          entryDate = new Date(entry.date);
+        }
+
+        if (isNaN(entryDate.getTime())) {
+          console.warn('Invalid date found in entry:', entry.date);
+          return;
+        }
+
+        const dateStr = entryDate.toISOString().split('T')[0];
+        if (frequencyData.hasOwnProperty(dateStr)) {
+          frequencyData[dateStr]++;
+        }
+      } catch (error) {
+        console.warn('Error processing entry date:', entry.date, error);
+      }
+    });
+
+    // 週間、月間統計を計算
+    const weeklyData: { [key: string]: number } = {};
+    const monthlyData: { [key: string]: number } = {};
+
+    Object.entries(frequencyData).forEach(([date, count]) => {
+      try {
+        const d = new Date(date);
+        if (isNaN(d.getTime())) return;
+
+        const weekKey = this.getWeekKey(d);
+        const monthKey =
+          d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+
+        weeklyData[weekKey] = (weeklyData[weekKey] || 0) + count;
+        monthlyData[monthKey] = (monthlyData[monthKey] || 0) + count;
+      } catch (error) {
+        console.warn('Error processing date in frequency data:', date, error);
+      }
+    });
+
+    return {
+      daily: frequencyData,
+      weekly: weeklyData,
+      monthly: monthlyData,
+      totalPosts: this.entries.length,
+      averagePerDay:
+        this.entries.length > 0
+          ? this.entries.length / Object.keys(frequencyData).length
+          : 0,
+    };
+  }
+
+  // 週のキーを生成（年-週番号）
+  private getWeekKey(date: Date): string {
+    const year = date.getFullYear();
+    const oneJan = new Date(year, 0, 1);
+    const numberOfDays = Math.floor(
+      (date.getTime() - oneJan.getTime()) / (24 * 60 * 60 * 1000)
+    );
+    const weekNumber = Math.ceil((date.getDay() + 1 + numberOfDays) / 7);
+    return `${year}-W${String(weekNumber).padStart(2, '0')}`;
+  }
+
+  // 文字数トレンド統計を取得
+  private getCharacterTrends() {
+    const trends: { date: string; count: number; title: string }[] = [];
+
+    this.entries
+      .filter(entry => {
+        // 有効な日付のみをフィルタ（日本語日付対応）
+        try {
+          let date: Date;
+          if (
+            entry.date.includes('年') &&
+            entry.date.includes('月') &&
+            entry.date.includes('日')
+          ) {
+            date = this.parseJapaneseDate(entry.date);
+          } else {
+            date = new Date(entry.date);
+          }
+          return !isNaN(date.getTime());
+        } catch {
+          return false;
+        }
+      })
+      .sort((a, b) => {
+        // ソート用の日付変換（日本語日付対応）
+        const getDateForSort = (dateStr: string) => {
+          if (
+            dateStr.includes('年') &&
+            dateStr.includes('月') &&
+            dateStr.includes('日')
+          ) {
+            return this.parseJapaneseDate(dateStr);
+          }
+          return new Date(dateStr);
+        };
+        return (
+          getDateForSort(a.date).getTime() - getDateForSort(b.date).getTime()
+        );
+      })
+      .forEach(entry => {
+        const totalChars =
+          (entry.title?.length || 0) + (entry.content?.length || 0);
+        trends.push({
+          date: entry.date,
+          count: totalChars,
+          title: entry.title,
+        });
+      });
+
+    // 統計計算
+    const counts = trends.map(t => t.count);
+    const averageCharCount =
+      counts.length > 0
+        ? counts.reduce((sum, count) => sum + count, 0) / counts.length
+        : 0;
+    const maxCharCount = counts.length > 0 ? Math.max(...counts) : 0;
+    const minCharCount = counts.length > 0 ? Math.min(...counts) : 0;
+
+    // 最近7日間の平均
+    const recentTrends = trends.slice(-7);
+    const recentAverage =
+      recentTrends.length > 0
+        ? recentTrends.reduce((sum, t) => sum + t.count, 0) /
+          recentTrends.length
+        : 0;
+
+    return {
+      trends,
+      averageCharCount: Math.round(averageCharCount),
+      maxCharCount,
+      minCharCount,
+      recentAverage: Math.round(recentAverage),
+      totalEntries: trends.length,
+    };
+  }
+
+  // 継続日数カウンタを取得
+  private getContinuousDaysStats() {
+    if (this.entries.length === 0) {
+      return {
+        currentStreak: 0,
+        maxStreak: 0,
+        lastPostDate: null,
+        streakStartDate: null,
+        totalDaysPosted: 0,
+      };
+    }
+
+    // 有効な日付のみを取得してソートしてユニークな投稿日を取得（日本語日付対応）
+    const validDates = this.entries
+      .map(entry => {
+        try {
+          let date: Date;
+          if (
+            entry.date.includes('年') &&
+            entry.date.includes('月') &&
+            entry.date.includes('日')
+          ) {
+            date = this.parseJapaneseDate(entry.date);
+          } else {
+            date = new Date(entry.date);
+          }
+
+          if (isNaN(date.getTime())) {
+            return null;
+          }
+
+          return date.toISOString().split('T')[0];
+        } catch {
+          return null;
+        }
+      })
+      .filter((dateStr): dateStr is string => dateStr !== null);
+
+    const uniqueDates = [...new Set(validDates)].sort();
+
+    if (uniqueDates.length === 0) {
+      return {
+        currentStreak: 0,
+        maxStreak: 0,
+        lastPostDate: null,
+        streakStartDate: null,
+        totalDaysPosted: 0,
+      };
+    }
+
+    let maxStreak = 0;
+    let currentStreak = 1;
+
+    // 最長連続記録を計算
+    for (let i = 1; i < uniqueDates.length; i++) {
+      const prevDate = new Date(uniqueDates[i - 1]);
+      const currDate = new Date(uniqueDates[i]);
+      const dayDiff =
+        (currDate.getTime() - prevDate.getTime()) / (1000 * 60 * 60 * 24);
+
+      if (dayDiff === 1) {
+        currentStreak++;
+      } else {
+        if (currentStreak > maxStreak) {
+          maxStreak = currentStreak;
+        }
+        currentStreak = 1;
+      }
+    }
+
+    // 最後のストリークチェック
+    if (currentStreak > maxStreak) {
+      maxStreak = currentStreak;
+    }
+
+    // 現在のストリーク計算
+    const today = new Date();
+    const yesterday = new Date(today.getTime() - 24 * 60 * 60 * 1000);
+    const lastPostDate = uniqueDates[uniqueDates.length - 1];
+
+    let currentActiveStreak = 0;
+    let activeStreakStart = null;
+
+    if (
+      lastPostDate === today.toISOString().split('T')[0] ||
+      lastPostDate === yesterday.toISOString().split('T')[0]
+    ) {
+      // 今日または昨日に投稿があった場合、現在のストリークを計算
+      currentActiveStreak = 1;
+      activeStreakStart = lastPostDate;
+
+      for (let i = uniqueDates.length - 2; i >= 0; i--) {
+        const currDate = new Date(uniqueDates[i]);
+        const nextDate = new Date(uniqueDates[i + 1]);
+        const dayDiff =
+          (nextDate.getTime() - currDate.getTime()) / (1000 * 60 * 60 * 24);
+
+        if (dayDiff === 1) {
+          currentActiveStreak++;
+          activeStreakStart = uniqueDates[i];
+        } else {
+          break;
+        }
+      }
+    }
+
+    return {
+      currentStreak: currentActiveStreak,
+      maxStreak,
+      lastPostDate: lastPostDate,
+      streakStartDate: activeStreakStart,
+      totalDaysPosted: uniqueDates.length,
+    };
+  }
+
   private renderMoodStats() {
     const statsContainer = document.getElementById('mood-stats');
     if (!statsContainer) return;
@@ -695,6 +972,299 @@ class DiaryApp {
 
     statsContainer.appendChild(gridDiv);
     statsContainer.appendChild(averageDiv);
+  }
+
+  // 投稿頻度統計をレンダリング
+  private renderPostFrequencyStats() {
+    const statsContainer = document.getElementById('post-frequency-stats');
+    if (!statsContainer) return;
+
+    statsContainer.textContent = '';
+
+    const stats = this.getPostFrequencyStats();
+
+    // 総投稿数と平均
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-6';
+
+    const totalPostsDiv = this.createStatCard(
+      '📝',
+      '総投稿数',
+      `${stats.totalPosts}件`
+    );
+    const avgPerDayDiv = this.createStatCard(
+      '📊',
+      '1日平均',
+      `${stats.averagePerDay.toFixed(1)}件`
+    );
+    const recentWeekTotal = Object.values(stats.weekly).slice(-1)[0] || 0;
+    const recentWeekDiv = this.createStatCard(
+      '📅',
+      '今週',
+      `${recentWeekTotal}件`
+    );
+    const recentMonthTotal = Object.values(stats.monthly).slice(-1)[0] || 0;
+    const recentMonthDiv = this.createStatCard(
+      '🗓️',
+      '今月',
+      `${recentMonthTotal}件`
+    );
+
+    summaryDiv.appendChild(totalPostsDiv);
+    summaryDiv.appendChild(avgPerDayDiv);
+    summaryDiv.appendChild(recentWeekDiv);
+    summaryDiv.appendChild(recentMonthDiv);
+    statsContainer.appendChild(summaryDiv);
+
+    // 過去7日間のチャート
+    const recentDays = Object.entries(stats.daily).slice(-7);
+    if (recentDays.length > 0) {
+      const chartDiv = document.createElement('div');
+      chartDiv.className = 'bg-gray-50 p-4 rounded-lg';
+
+      const chartTitle = document.createElement('h4');
+      chartTitle.className = 'text-sm font-medium text-gray-700 mb-3';
+      chartTitle.textContent = '過去7日間の投稿数';
+      chartDiv.appendChild(chartTitle);
+
+      const barsContainer = document.createElement('div');
+      barsContainer.className = 'flex items-end justify-between gap-1 h-24';
+
+      const maxCount = Math.max(...recentDays.map(([_, count]) => count));
+
+      recentDays.forEach(([date, count]) => {
+        const barContainer = document.createElement('div');
+        barContainer.className = 'flex-1 flex flex-col items-center';
+
+        const bar = document.createElement('div');
+        bar.className = 'w-full bg-blue-500 rounded-sm';
+        const height = maxCount > 0 ? (count / maxCount) * 100 : 0;
+        bar.style.height = `${Math.max(height, 2)}%`;
+
+        const label = document.createElement('span');
+        label.className = 'text-xs text-gray-600 mt-1';
+        label.textContent = new Date(date).getDate().toString();
+
+        const countLabel = document.createElement('span');
+        countLabel.className = 'text-xs text-gray-500';
+        countLabel.textContent = count.toString();
+
+        barContainer.appendChild(bar);
+        barContainer.appendChild(label);
+        if (count > 0) barContainer.appendChild(countLabel);
+
+        barsContainer.appendChild(barContainer);
+      });
+
+      chartDiv.appendChild(barsContainer);
+      statsContainer.appendChild(chartDiv);
+    }
+  }
+
+  // 文字数トレンドをレンダリング
+  private renderCharacterTrends() {
+    const statsContainer = document.getElementById('character-trends');
+    if (!statsContainer) return;
+
+    statsContainer.textContent = '';
+
+    const trends = this.getCharacterTrends();
+
+    if (trends.totalEntries === 0) {
+      const noDataP = document.createElement('p');
+      noDataP.className = 'text-gray-500 text-center';
+      noDataP.textContent = 'まだエントリがありません';
+      statsContainer.appendChild(noDataP);
+      return;
+    }
+
+    // 文字数統計サマリー
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-6';
+
+    const avgDiv = this.createStatCard(
+      '📊',
+      '平均文字数',
+      `${trends.averageCharCount}文字`
+    );
+    const maxDiv = this.createStatCard(
+      '📈',
+      '最大文字数',
+      `${trends.maxCharCount}文字`
+    );
+    const minDiv = this.createStatCard(
+      '📉',
+      '最小文字数',
+      `${trends.minCharCount}文字`
+    );
+    const recentDiv = this.createStatCard(
+      '📅',
+      '最近7日平均',
+      `${trends.recentAverage}文字`
+    );
+
+    summaryDiv.appendChild(avgDiv);
+    summaryDiv.appendChild(maxDiv);
+    summaryDiv.appendChild(minDiv);
+    summaryDiv.appendChild(recentDiv);
+    statsContainer.appendChild(summaryDiv);
+
+    // 最近の投稿トレンド
+    const recentTrends = trends.trends.slice(-10);
+    if (recentTrends.length > 0) {
+      const trendDiv = document.createElement('div');
+      trendDiv.className = 'bg-gray-50 p-4 rounded-lg';
+
+      const trendTitle = document.createElement('h4');
+      trendTitle.className = 'text-sm font-medium text-gray-700 mb-3';
+      trendTitle.textContent = '最近の文字数推移';
+      trendDiv.appendChild(trendTitle);
+
+      const trendsContainer = document.createElement('div');
+      trendsContainer.className = 'space-y-2';
+
+      recentTrends.forEach(trend => {
+        const trendItem = document.createElement('div');
+        trendItem.className = 'flex justify-between items-center text-sm';
+
+        const dateDiv = document.createElement('div');
+        dateDiv.className = 'text-gray-600';
+
+        // 日本語日付の処理
+        let displayDate: string;
+        try {
+          let date: Date;
+          if (
+            trend.date.includes('年') &&
+            trend.date.includes('月') &&
+            trend.date.includes('日')
+          ) {
+            date = this.parseJapaneseDate(trend.date);
+            displayDate = date.toLocaleDateString('ja-JP');
+          } else {
+            date = new Date(trend.date);
+            displayDate = date.toLocaleDateString('ja-JP');
+          }
+        } catch {
+          displayDate = trend.date; // フォールバック：元の文字列をそのまま表示
+        }
+
+        dateDiv.textContent = displayDate;
+
+        const titleDiv = document.createElement('div');
+        titleDiv.className = 'flex-1 mx-3 truncate';
+        titleDiv.textContent = trend.title || '無題';
+
+        const countDiv = document.createElement('div');
+        countDiv.className = 'font-medium';
+        countDiv.textContent = `${trend.count}文字`;
+
+        trendItem.appendChild(dateDiv);
+        trendItem.appendChild(titleDiv);
+        trendItem.appendChild(countDiv);
+        trendsContainer.appendChild(trendItem);
+      });
+
+      trendDiv.appendChild(trendsContainer);
+      statsContainer.appendChild(trendDiv);
+    }
+  }
+
+  // 継続日数統計をレンダリング
+  private renderContinuousStats() {
+    const statsContainer = document.getElementById('continuous-stats');
+    if (!statsContainer) return;
+
+    statsContainer.textContent = '';
+
+    const stats = this.getContinuousDaysStats();
+
+    // 継続統計サマリー
+    const summaryDiv = document.createElement('div');
+    summaryDiv.className = 'grid grid-cols-2 md:grid-cols-4 gap-4 mb-6';
+
+    const currentStreakDiv = this.createStatCard(
+      '🔥',
+      '現在の連続日数',
+      `${stats.currentStreak}日`,
+      stats.currentStreak > 0 ? 'bg-orange-50 border-orange-200' : 'bg-gray-50'
+    );
+    const maxStreakDiv = this.createStatCard(
+      '🏆',
+      '最長連続記録',
+      `${stats.maxStreak}日`
+    );
+    const totalDaysDiv = this.createStatCard(
+      '📅',
+      '投稿日数',
+      `${stats.totalDaysPosted}日`
+    );
+
+    const lastPostDiv = this.createStatCard(
+      '📝',
+      '最終投稿日',
+      stats.lastPostDate
+        ? new Date(stats.lastPostDate).toLocaleDateString('ja-JP')
+        : '未投稿'
+    );
+
+    summaryDiv.appendChild(currentStreakDiv);
+    summaryDiv.appendChild(maxStreakDiv);
+    summaryDiv.appendChild(totalDaysDiv);
+    summaryDiv.appendChild(lastPostDiv);
+    statsContainer.appendChild(summaryDiv);
+
+    // 連続投稿のモチベーションメッセージ
+    const motivationDiv = document.createElement('div');
+    motivationDiv.className = 'bg-blue-50 p-4 rounded-lg text-center';
+
+    const motivationText = document.createElement('p');
+    motivationText.className = 'text-sm text-blue-800';
+
+    if (stats.currentStreak === 0) {
+      motivationText.textContent = '今日から日記を始めてみませんか？ 📝';
+    } else if (stats.currentStreak === 1) {
+      motivationText.textContent =
+        'いいスタートです！明日も続けてみましょう 🌟';
+    } else if (stats.currentStreak < 7) {
+      motivationText.textContent = `${stats.currentStreak}日連続！いい調子です 🎉`;
+    } else if (stats.currentStreak < 30) {
+      motivationText.textContent = `${stats.currentStreak}日連続！素晴らしい習慣です 🔥`;
+    } else {
+      motivationText.textContent = `${stats.currentStreak}日連続！驚異的な継続力です！ 🏆`;
+    }
+
+    motivationDiv.appendChild(motivationText);
+    statsContainer.appendChild(motivationDiv);
+  }
+
+  // 統計カードを作成するヘルパーメソッド
+  private createStatCard(
+    icon: string,
+    label: string,
+    value: string,
+    additionalClasses: string = ''
+  ) {
+    const card = document.createElement('div');
+    card.className = `text-center p-4 bg-white border rounded-lg ${additionalClasses}`;
+
+    const iconDiv = document.createElement('div');
+    iconDiv.className = 'text-2xl mb-2';
+    iconDiv.textContent = icon;
+
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'text-sm text-gray-600 mb-1';
+    labelDiv.textContent = label;
+
+    const valueDiv = document.createElement('div');
+    valueDiv.className = 'text-lg font-semibold';
+    valueDiv.textContent = value;
+
+    card.appendChild(iconDiv);
+    card.appendChild(labelDiv);
+    card.appendChild(valueDiv);
+
+    return card;
   }
 
   private getMoodChartData(period: 'month' | 'year') {
@@ -856,6 +1426,9 @@ class DiaryApp {
   }
 
   private updateMoodFeatures() {
+    this.renderPostFrequencyStats();
+    this.renderCharacterTrends();
+    this.renderContinuousStats();
     this.renderMoodStats();
     this.renderMoodChart();
   }
