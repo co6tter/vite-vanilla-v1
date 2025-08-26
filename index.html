@@ -6,55 +6,154 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>日記アプリ</title>
   </head>
-  <body class="bg-gray-100 min-h-screen">
-    <div id="app" class="container mx-auto px-4 py-8 max-w-4xl">
-      <header class="mb-8">
-        <h1 class="text-3xl font-bold text-gray-800 text-center">
-          📝 My Diary
-        </h1>
+  <body class="min-h-screen transition-colors">
+    <div
+      id="app"
+      class="container mx-auto px-3 sm:px-4 py-6 sm:py-8 max-w-4xl text-base"
+    >
+      <header class="mb-6 sm:mb-8">
+        <div class="flex justify-between items-center mb-4 flex-wrap gap-2">
+          <h1
+            class="text-2xl sm:text-3xl font-bold text-gray-800 dark:text-gray-200 text-center flex-1 min-w-0"
+          >
+            📝 My Diary
+          </h1>
+          <button
+            id="settings-toggle"
+            class="p-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors"
+            title="設定"
+          >
+            ⚙️
+          </button>
+        </div>
+
+        <!-- Settings Panel -->
+        <div
+          id="settings-panel"
+          class="hidden bg-white dark:bg-gray-800 rounded-lg shadow-lg p-3 sm:p-4 mb-4 border border-gray-200 dark:border-gray-700"
+        >
+          <h3
+            class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4"
+          >
+            ⚙️ 設定
+          </h3>
+
+          <div class="space-y-4">
+            <!-- Dark Mode Toggle -->
+            <div class="flex items-center justify-between">
+              <label
+                class="text-sm font-medium text-gray-700 dark:text-gray-300"
+              >
+                🌙 ダークモード
+              </label>
+              <button
+                id="dark-mode-toggle"
+                class="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200 transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              >
+                <span
+                  id="dark-mode-switch"
+                  class="inline-block h-4 w-4 transform rounded-full bg-white transition-transform translate-x-0"
+                ></span>
+              </button>
+            </div>
+
+            <!-- Font Size Setting -->
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                📝 フォントサイズ
+              </label>
+              <div
+                class="flex items-center space-x-1 sm:space-x-2 flex-wrap gap-1"
+              >
+                <button
+                  id="font-size-small"
+                  class="px-2 sm:px-3 py-1 text-xs border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  小
+                </button>
+                <button
+                  id="font-size-medium"
+                  class="px-2 sm:px-3 py-1 text-sm border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors bg-blue-100 dark:bg-blue-900"
+                >
+                  中
+                </button>
+                <button
+                  id="font-size-large"
+                  class="px-2 sm:px-3 py-1 text-base border rounded-md hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
+                >
+                  大
+                </button>
+              </div>
+            </div>
+
+            <!-- Font Family Setting -->
+            <div>
+              <label
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+              >
+                🔤 フォントファミリー
+              </label>
+              <select
+                id="font-family-select"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100"
+              >
+                <option value="system">システムフォント</option>
+                <option value="serif">明朝体 (Serif)</option>
+                <option value="sans-serif">ゴシック体 (Sans-serif)</option>
+                <option value="monospace">等幅フォント (Monospace)</option>
+              </select>
+            </div>
+          </div>
+        </div>
       </header>
 
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6 transition-colors"
+      >
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
           新しい日記を書く
         </h2>
         <form id="diary-form" class="space-y-4">
           <div>
             <label
               for="diary-title"
-              class="block text-sm font-medium text-gray-700 mb-1"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               タイトル
             </label>
             <input
               type="text"
               id="diary-title"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
               placeholder="今日のタイトル"
             />
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               📄 テンプレート
             </label>
-            <div class="flex gap-2 mb-3">
+            <div class="flex flex-col sm:flex-row gap-2 mb-3">
               <select
                 id="template-selector"
-                class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
               >
                 <option value="">テンプレートを選択...</option>
               </select>
               <button
                 id="save-template"
                 type="button"
-                class="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition duration-200 text-sm"
+                class="px-3 sm:px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition duration-200 text-sm w-full sm:w-auto"
               >
                 保存
               </button>
               <button
                 id="manage-templates"
                 type="button"
-                class="px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-200 text-sm"
+                class="px-3 sm:px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-200 text-sm w-full sm:w-auto"
               >
                 管理
               </button>
@@ -63,19 +162,21 @@
           <div>
             <label
               for="diary-content"
-              class="block text-sm font-medium text-gray-700 mb-1"
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
             >
               内容
             </label>
             <textarea
               id="diary-content"
               rows="4"
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 resize-none transition-colors"
               placeholder="今日はどんな一日でしたか？"
             ></textarea>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               今日の気分
             </label>
             <div
@@ -84,7 +185,9 @@
             ></div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               📷 画像を追加
             </label>
             <input
@@ -92,39 +195,45 @@
               id="image-input"
               accept="image/*"
               multiple
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
             />
             <div id="image-preview" class="hidden"></div>
           </div>
           <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">
+            <label
+              class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+            >
               📎 ファイルを添付
             </label>
             <input
               type="file"
               id="file-input"
               multiple
-              class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
             />
             <div id="attachment-list" class="hidden"></div>
           </div>
           <button
             type="submit"
-            class="w-full bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition duration-200"
+            class="w-full bg-blue-500 text-white py-3 px-4 rounded-md hover:bg-blue-600 transition duration-200 text-base sm:text-sm"
           >
             保存する
           </button>
         </form>
       </div>
 
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">検索・フィルタ</h2>
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6 transition-colors"
+      >
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
+          検索・フィルタ
+        </h2>
         <div class="space-y-4">
           <div class="flex flex-col md:flex-row gap-4">
             <div class="flex-1">
               <label
                 for="search-input"
-                class="block text-sm font-medium text-gray-700 mb-1"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
                 キーワード検索
               </label>
@@ -132,13 +241,13 @@
                 type="text"
                 id="search-input"
                 placeholder="タイトルや内容で検索..."
-                class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
               />
             </div>
             <div class="flex-1">
               <label
                 for="date-from"
-                class="block text-sm font-medium text-gray-700 mb-1"
+                class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
               >
                 期間
               </label>
@@ -146,13 +255,13 @@
                 <input
                   type="date"
                   id="date-from"
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
                 />
                 <span class="text-gray-500 self-center">〜</span>
                 <input
                   type="date"
                   id="date-to"
-                  class="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 transition-colors"
                 />
               </div>
             </div>
@@ -161,7 +270,7 @@
             <button
               id="clear-search"
               type="button"
-              class="px-4 py-2 text-gray-600 bg-gray-100 rounded-md hover:bg-gray-200 transition duration-200"
+              class="px-3 sm:px-4 py-2 text-gray-600 bg-gray-100 dark:bg-gray-700 dark:text-gray-300 rounded-md hover:bg-gray-200 dark:hover:bg-gray-600 transition duration-200 text-sm"
             >
               クリア
             </button>
@@ -169,12 +278,16 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">📊 統計・分析</h2>
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6 transition-colors"
+      >
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
+          📊 統計・分析
+        </h2>
 
         <!-- 投稿頻度統計 -->
         <div class="mb-8">
-          <h3 class="text-lg font-medium text-gray-600 mb-4">
+          <h3 class="text-lg font-medium text-gray-600 dark:text-gray-300 mb-4">
             📈 投稿頻度統計
           </h3>
           <div id="post-frequency-stats"></div>
@@ -182,7 +295,7 @@
 
         <!-- 文字数トレンド -->
         <div class="mb-8">
-          <h3 class="text-lg font-medium text-gray-600 mb-4">
+          <h3 class="text-lg font-medium text-gray-600 dark:text-gray-300 mb-4">
             📝 文字数トレンド
           </h3>
           <div id="character-trends"></div>
@@ -190,7 +303,7 @@
 
         <!-- 継続日数カウンタ -->
         <div class="mb-8">
-          <h3 class="text-lg font-medium text-gray-600 mb-4">
+          <h3 class="text-lg font-medium text-gray-600 dark:text-gray-300 mb-4">
             🔥 継続日数カウンタ
           </h3>
           <div id="continuous-stats"></div>
@@ -198,63 +311,77 @@
 
         <!-- 気分統計 -->
         <div class="mb-8">
-          <h3 class="text-lg font-medium text-gray-600 mb-4">😊 気分統計</h3>
+          <h3 class="text-lg font-medium text-gray-600 dark:text-gray-300 mb-4">
+            😊 気分統計
+          </h3>
           <div id="mood-stats"></div>
         </div>
 
         <!-- 気分チャート -->
         <div>
-          <h3 class="text-lg font-medium text-gray-600 mb-4">
+          <h3 class="text-lg font-medium text-gray-600 dark:text-gray-300 mb-4">
             📊 気分チャート
           </h3>
           <div id="mood-chart"></div>
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-md p-6 mb-6">
-        <h2 class="text-xl font-semibold text-gray-700 mb-4">データ管理</h2>
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6 transition-colors"
+      >
+        <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200 mb-4">
+          データ管理
+        </h2>
+        <div
+          class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4"
+        >
           <div class="space-y-2">
-            <h3 class="text-sm font-medium text-gray-600">エクスポート</h3>
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300">
+              エクスポート
+            </h3>
             <button
               id="export-json"
-              class="w-full px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-200"
+              class="w-full px-3 sm:px-4 py-2 sm:py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition duration-200 text-sm"
             >
               📄 JSON形式
             </button>
             <button
               id="export-pdf"
-              class="w-full px-4 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-200"
+              class="w-full px-3 sm:px-4 py-2 sm:py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition duration-200 text-sm"
             >
               📕 PDF形式
             </button>
           </div>
           <div class="space-y-2">
-            <h3 class="text-sm font-medium text-gray-600">バックアップ</h3>
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300">
+              バックアップ
+            </h3>
             <button
               id="backup-data"
-              class="w-full px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition duration-200"
+              class="w-full px-3 sm:px-4 py-2 sm:py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition duration-200 text-sm"
             >
               💾 バックアップ
             </button>
             <button
               id="restore-data"
-              class="w-full px-4 py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition duration-200"
+              class="w-full px-3 sm:px-4 py-2 sm:py-2 bg-orange-500 text-white rounded-md hover:bg-orange-600 transition duration-200 text-sm"
             >
               🔄 復元
             </button>
           </div>
           <div class="space-y-2">
-            <h3 class="text-sm font-medium text-gray-600">同期・インポート</h3>
+            <h3 class="text-sm font-medium text-gray-600 dark:text-gray-300">
+              同期・インポート
+            </h3>
             <button
               id="import-data"
-              class="w-full px-4 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition duration-200"
+              class="w-full px-3 sm:px-4 py-2 sm:py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition duration-200 text-sm"
             >
               📥 インポート
             </button>
             <button
               id="sync-cloud"
-              class="w-full px-4 py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-200"
+              class="w-full px-3 sm:px-4 py-2 sm:py-2 bg-gray-500 text-white rounded-md hover:bg-gray-600 transition duration-200 text-sm"
             >
               ☁️ クラウド同期
             </button>
@@ -262,12 +389,19 @@
         </div>
       </div>
 
-      <div class="bg-white rounded-lg shadow-md p-6">
+      <div
+        class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 transition-colors"
+      >
         <div class="flex justify-between items-center mb-4">
-          <h2 class="text-xl font-semibold text-gray-700">過去の日記</h2>
-          <div id="search-results-count" class="text-sm text-gray-500"></div>
+          <h2 class="text-xl font-semibold text-gray-700 dark:text-gray-200">
+            過去の日記
+          </h2>
+          <div
+            id="search-results-count"
+            class="text-sm text-gray-500 dark:text-gray-400"
+          ></div>
         </div>
-        <div id="diary-list" class="space-y-3"></div>
+        <div id="diary-list" class="space-y-2 sm:space-y-3"></div>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

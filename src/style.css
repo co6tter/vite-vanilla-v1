@@ -1,1 +1,96 @@
 @import 'tailwindcss';
+
+/* Additional dark mode styles */
+.dark {
+  color-scheme: dark;
+}
+
+/* Custom scrollbar for dark mode */
+.dark::-webkit-scrollbar {
+  width: 8px;
+}
+
+.dark::-webkit-scrollbar-track {
+  background: #374151;
+}
+
+.dark::-webkit-scrollbar-thumb {
+  background: #6b7280;
+  border-radius: 4px;
+}
+
+.dark::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Focus states for better accessibility */
+.dark *:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 2px;
+}
+
+/* Ensure text is readable in all themes */
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #9ca3af;
+}
+
+/* Animation for theme transitions */
+* {
+  transition: background-color 0.2s ease, border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+/* ライトモード時の明確な背景色設定 */
+body {
+  background-color: #f3f4f6 !important;
+}
+
+html.dark body {
+  background-color: #111827 !important;
+}
+
+/* パネル（カード）の背景色設定 */
+.bg-white {
+  background-color: #ffffff !important;
+}
+
+html.dark .bg-white {
+  background-color: #374151 !important;
+}
+
+/* テキスト色の設定 */
+.text-gray-800 {
+  color: #1f2937 !important;
+}
+
+html.dark .text-gray-800 {
+  color: #f9fafb !important;
+}
+
+.text-gray-700 {
+  color: #374151 !important;
+}
+
+html.dark .text-gray-700 {
+  color: #e5e7eb !important;
+}
+
+/* Mobile-specific improvements */
+@media (max-width: 640px) {
+  .container {
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
+
+  /* Improve touch targets on mobile */
+  button,
+  .btn {
+    min-height: 44px;
+  }
+
+  /* Better spacing for mobile */
+  .space-y-4 > * + * {
+    margin-top: 0.75rem;
+  }
+}
