@@ -58,6 +58,16 @@ class DiaryApp {
   private templateSelector: HTMLSelectElement;
   private saveTemplateButton: HTMLButtonElement;
   private manageTemplatesButton: HTMLButtonElement;
+  // UI Settings properties
+  private settingsToggle!: HTMLButtonElement;
+  private settingsPanel!: HTMLElement;
+  private darkModeToggle!: HTMLButtonElement;
+  private fontSizeButtons!: NodeListOf<HTMLButtonElement>;
+  private fontFamilySelect!: HTMLSelectElement;
+  private currentTheme: 'light' | 'dark' = 'light';
+  private currentFontSize: 'small' | 'medium' | 'large' = 'medium';
+  private currentFontFamily: 'system' | 'serif' | 'sans-serif' | 'monospace' =
+    'system';
 
   private readonly moodRatings: MoodRating[] = [
     { value: 1, emoji: '😢', label: 'とても悲しい' },
@@ -150,13 +160,35 @@ class DiaryApp {
       'manage-templates'
     ) as HTMLButtonElement;
 
+    // UI設定要素の初期化
+    this.settingsToggle = document.getElementById(
+      'settings-toggle'
+    ) as HTMLButtonElement;
+    this.settingsPanel = document.getElementById(
+      'settings-panel'
+    ) as HTMLElement;
+    this.darkModeToggle = document.getElementById(
+      'dark-mode-toggle'
+    ) as HTMLButtonElement;
+    this.fontSizeButtons = document.querySelectorAll(
+      '[id^="font-size-"]'
+    ) as NodeListOf<HTMLButtonElement>;
+    this.fontFamilySelect = document.getElementById(
+      'font-family-select'
+    ) as HTMLSelectElement;
+
     this.loadEntries();
     this.loadTemplates();
+    this.loadUISettings();
+    // テーマの状態を確実に同期
+    this.applyTheme();
     this.bindEvents();
     this.initializeMoodSelector();
     this.initializeFileInputs();
     this.initializeTemplateFeatures();
     this.initializeExportFeatures();
+    this.initializeUISettings();
+    this.updateUIControls();
     this.updateMoodFeatures();
     this.applyFilters();
   }
@@ -382,6 +414,184 @@ class DiaryApp {
     } else {
       this.searchResultsCount.textContent = `${total}件`;
     }
+  }
+
+  // UI Settings Methods
+  private loadUISettings(): void {
+    const theme = localStorage.getItem('diary-theme') as
+      | 'light'
+      | 'dark'
+      | null;
+    const fontSize = localStorage.getItem('diary-font-size') as
+      | 'small'
+      | 'medium'
+      | 'large'
+      | null;
+    const fontFamily = localStorage.getItem('diary-font-family') as
+      | 'system'
+      | 'serif'
+      | 'sans-serif'
+      | 'monospace'
+      | null;
+
+    this.currentTheme = theme || 'light';
+    this.currentFontSize = fontSize || 'medium';
+    this.currentFontFamily = fontFamily || 'system';
+
+    this.applyFontSize();
+    this.applyFontFamily();
+  }
+
+  private saveUISettings(): void {
+    localStorage.setItem('diary-theme', this.currentTheme);
+    localStorage.setItem('diary-font-size', this.currentFontSize);
+    localStorage.setItem('diary-font-family', this.currentFontFamily);
+  }
+
+  private initializeUISettings(): void {
+    // Settings panel toggle
+    this.settingsToggle.addEventListener('click', () => {
+      this.settingsPanel.classList.toggle('hidden');
+    });
+
+    // Dark mode toggle
+    this.darkModeToggle.addEventListener('click', () => {
+      this.toggleDarkMode();
+    });
+
+    // Font size buttons
+    this.fontSizeButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const size = button.id.replace('font-size-', '') as
+          | 'small'
+          | 'medium'
+          | 'large';
+        this.setFontSize(size);
+      });
+    });
+
+    // Font family select
+    this.fontFamilySelect.addEventListener('change', () => {
+      const family = this.fontFamilySelect.value as
+        | 'system'
+        | 'serif'
+        | 'sans-serif'
+        | 'monospace';
+      this.setFontFamily(family);
+    });
+
+    // Close settings panel when clicking outside
+    document.addEventListener('click', e => {
+      if (
+        !this.settingsPanel.contains(e.target as Node) &&
+        !this.settingsToggle.contains(e.target as Node) &&
+        !this.settingsPanel.classList.contains('hidden')
+      ) {
+        this.settingsPanel.classList.add('hidden');
+      }
+    });
+
+    this.updateUIControls();
+  }
+
+  private toggleDarkMode(): void {
+    this.currentTheme = this.currentTheme === 'light' ? 'dark' : 'light';
+    this.applyTheme();
+    this.saveUISettings();
+    this.updateUIControls();
+  }
+
+  private applyTheme(): void {
+    if (this.currentTheme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }
+
+  private setFontSize(size: 'small' | 'medium' | 'large'): void {
+    this.currentFontSize = size;
+    this.applyFontSize();
+    this.saveUISettings();
+    this.updateUIControls();
+  }
+
+  private applyFontSize(): void {
+    const app = document.getElementById('app') as HTMLElement;
+    app.classList.remove('text-sm', 'text-base', 'text-lg');
+
+    switch (this.currentFontSize) {
+      case 'small':
+        app.classList.add('text-sm');
+        break;
+      case 'large':
+        app.classList.add('text-lg');
+        break;
+      case 'medium':
+      default:
+        app.classList.add('text-base');
+        break;
+    }
+  }
+
+  private setFontFamily(
+    family: 'system' | 'serif' | 'sans-serif' | 'monospace'
+  ): void {
+    this.currentFontFamily = family;
+    this.applyFontFamily();
+    this.saveUISettings();
+  }
+
+  private applyFontFamily(): void {
+    const body = document.body;
+    body.classList.remove('font-serif', 'font-sans', 'font-mono');
+
+    switch (this.currentFontFamily) {
+      case 'serif':
+        body.classList.add('font-serif');
+        break;
+      case 'sans-serif':
+        body.classList.add('font-sans');
+        break;
+      case 'monospace':
+        body.classList.add('font-mono');
+        break;
+      case 'system':
+      default:
+        // Use system default
+        break;
+    }
+  }
+
+  private updateUIControls(): void {
+    // Update dark mode toggle
+    const darkModeSwitch = document.getElementById(
+      'dark-mode-switch'
+    ) as HTMLElement;
+    if (this.currentTheme === 'dark') {
+      this.darkModeToggle.classList.remove('bg-gray-200');
+      this.darkModeToggle.classList.add('bg-blue-600');
+      darkModeSwitch.classList.remove('translate-x-0');
+      darkModeSwitch.classList.add('translate-x-6');
+    } else {
+      this.darkModeToggle.classList.remove('bg-blue-600');
+      this.darkModeToggle.classList.add('bg-gray-200');
+      darkModeSwitch.classList.remove('translate-x-6');
+      darkModeSwitch.classList.add('translate-x-0');
+    }
+
+    // Update font size buttons
+    this.fontSizeButtons.forEach(button => {
+      const size = button.id.replace('font-size-', '');
+      if (size === this.currentFontSize) {
+        button.classList.add('bg-blue-100', 'dark:bg-blue-900');
+      } else {
+        button.classList.remove('bg-blue-100', 'dark:bg-blue-900');
+      }
+    });
+
+    // Update font family select
+    this.fontFamilySelect.value = this.currentFontFamily;
   }
 
   private clearFilters() {
