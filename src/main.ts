@@ -69,6 +69,16 @@ class DiaryApp {
   private currentFontFamily: 'system' | 'serif' | 'sans-serif' | 'monospace' =
     'system';
 
+  // Reminder settings properties
+  private reminderToggle!: HTMLButtonElement;
+  private reminderTimeInput!: HTMLInputElement;
+  private reminderTimeSetting!: HTMLElement;
+  private habitStreak!: HTMLElement;
+  private monthlyPosts!: HTMLElement;
+  private reminderEnabled: boolean = false;
+  private reminderTime: string = '20:00';
+  private notificationPermission: NotificationPermission = 'default';
+
   private readonly moodRatings: MoodRating[] = [
     { value: 1, emoji: '😢', label: 'とても悲しい' },
     { value: 2, emoji: '😐', label: '悲しい' },
@@ -177,9 +187,23 @@ class DiaryApp {
       'font-family-select'
     ) as HTMLSelectElement;
 
+    // リマインダー要素の初期化
+    this.reminderToggle = document.getElementById(
+      'reminder-toggle'
+    ) as HTMLButtonElement;
+    this.reminderTimeInput = document.getElementById(
+      'reminder-time'
+    ) as HTMLInputElement;
+    this.reminderTimeSetting = document.getElementById(
+      'reminder-time-setting'
+    ) as HTMLElement;
+    this.habitStreak = document.getElementById('habit-streak') as HTMLElement;
+    this.monthlyPosts = document.getElementById('monthly-posts') as HTMLElement;
+
     this.loadEntries();
     this.loadTemplates();
     this.loadUISettings();
+    this.loadReminderSettings();
     // テーマの状態を確実に同期
     this.applyTheme();
     this.bindEvents();
@@ -188,8 +212,11 @@ class DiaryApp {
     this.initializeTemplateFeatures();
     this.initializeExportFeatures();
     this.initializeUISettings();
+    this.initializeReminderFeatures();
+    this.registerServiceWorker();
     this.updateUIControls();
     this.updateMoodFeatures();
+    this.updateHabitStats();
     this.applyFilters();
   }
 
@@ -247,6 +274,7 @@ class DiaryApp {
     this.entries.unshift(entry);
     this.saveEntries();
     this.updateMoodFeatures();
+    this.updateHabitStats();
     this.applyFilters();
     this.clearForm();
   }
@@ -592,6 +620,251 @@ class DiaryApp {
 
     // Update font family select
     this.fontFamilySelect.value = this.currentFontFamily;
+  }
+
+  // Reminder Methods
+  private loadReminderSettings(): void {
+    const reminderEnabled =
+      localStorage.getItem('diary-reminder-enabled') === 'true';
+    const reminderTime = localStorage.getItem('diary-reminder-time') || '20:00';
+
+    this.reminderEnabled = reminderEnabled;
+    this.reminderTime = reminderTime;
+    this.reminderTimeInput.value = reminderTime;
+
+    if (reminderEnabled) {
+      this.reminderTimeSetting.classList.remove('hidden');
+    }
+  }
+
+  private saveReminderSettings(): void {
+    localStorage.setItem(
+      'diary-reminder-enabled',
+      this.reminderEnabled.toString()
+    );
+    localStorage.setItem('diary-reminder-time', this.reminderTime);
+
+    // Service Workerに設定を送信
+    if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({
+        type: 'SCHEDULE_REMINDER',
+        payload: {
+          time: this.reminderTime,
+          enabled: this.reminderEnabled,
+        },
+      });
+    }
+  }
+
+  private async initializeReminderFeatures(): Promise<void> {
+    // 通知許可の確認
+    this.notificationPermission = Notification.permission;
+
+    // リマインダートグル
+    this.reminderToggle.addEventListener('click', async () => {
+      await this.toggleReminder();
+    });
+
+    // リマインダー時刻変更
+    this.reminderTimeInput.addEventListener('change', () => {
+      this.reminderTime = this.reminderTimeInput.value;
+      this.saveReminderSettings();
+      this.scheduleReminder();
+    });
+
+    this.updateReminderControls();
+    this.scheduleReminder();
+  }
+
+  private async toggleReminder(): Promise<void> {
+    if (!this.reminderEnabled) {
+      // 通知許可を求める
+      if (this.notificationPermission === 'default') {
+        const permission = await Notification.requestPermission();
+        this.notificationPermission = permission;
+      }
+
+      if (this.notificationPermission === 'granted') {
+        this.reminderEnabled = true;
+        this.reminderTimeSetting.classList.remove('hidden');
+      } else {
+        alert('通知を有効にするには、ブラウザの通知許可が必要です。');
+        return;
+      }
+    } else {
+      this.reminderEnabled = false;
+      this.reminderTimeSetting.classList.add('hidden');
+    }
+
+    this.saveReminderSettings();
+    this.updateReminderControls();
+    this.scheduleReminder();
+  }
+
+  private updateReminderControls(): void {
+    const reminderSwitch = document.getElementById(
+      'reminder-switch'
+    ) as HTMLElement;
+    if (this.reminderEnabled) {
+      this.reminderToggle.classList.remove('bg-gray-200');
+      this.reminderToggle.classList.add('bg-blue-600');
+      reminderSwitch.classList.remove('translate-x-0');
+      reminderSwitch.classList.add('translate-x-6');
+    } else {
+      this.reminderToggle.classList.remove('bg-blue-600');
+      this.reminderToggle.classList.add('bg-gray-200');
+      reminderSwitch.classList.remove('translate-x-6');
+      reminderSwitch.classList.add('translate-x-0');
+    }
+  }
+
+  private scheduleReminder(): void {
+    // 既存のリマインダーをクリア
+    const existingTimeout = localStorage.getItem('diary-reminder-timeout');
+    if (existingTimeout) {
+      clearTimeout(parseInt(existingTimeout));
+      localStorage.removeItem('diary-reminder-timeout');
+    }
+
+    if (!this.reminderEnabled || this.notificationPermission !== 'granted') {
+      return;
+    }
+
+    // 次のリマインダー時刻を計算
+    const now = new Date();
+    const [hours, minutes] = this.reminderTime.split(':').map(Number);
+    const reminderDate = new Date(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      hours,
+      minutes,
+      0
+    );
+
+    // 今日の時刻が過ぎていれば明日に設定
+    if (reminderDate <= now) {
+      reminderDate.setDate(reminderDate.getDate() + 1);
+    }
+
+    const timeUntilReminder = reminderDate.getTime() - now.getTime();
+
+    // タイムアウトを設定
+    const timeoutId = setTimeout(() => {
+      this.showReminderNotification();
+      // 次の日のリマインダーをスケジュール
+      this.scheduleReminder();
+    }, timeUntilReminder);
+
+    localStorage.setItem('diary-reminder-timeout', timeoutId.toString());
+  }
+
+  private showReminderNotification(): void {
+    if (this.notificationPermission !== 'granted') return;
+
+    // 今日の日記があるかチェック
+    const today = new Date().toLocaleDateString('ja-JP');
+    const todayEntry = this.entries.find(
+      entry => new Date(entry.date).toLocaleDateString('ja-JP') === today
+    );
+
+    if (todayEntry) {
+      // 既に今日の日記が書かれている場合は通知しない
+      return;
+    }
+
+    const notification = new Notification('📝 日記の時間です', {
+      body: '今日の出来事を振り返って日記を書きましょう！',
+      icon: '/vite.svg',
+      tag: 'diary-reminder',
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+
+    // 10秒後に自動的に閉じる
+    setTimeout(() => {
+      notification.close();
+    }, 10000);
+  }
+
+  private updateHabitStats(): void {
+    const streak = this.calculateHabitStreak();
+    const monthlyCount = this.calculateMonthlyPosts();
+
+    this.habitStreak.textContent = `${streak}日`;
+    this.monthlyPosts.textContent = monthlyCount.toString();
+  }
+
+  private calculateHabitStreak(): number {
+    if (this.entries.length === 0) return 0;
+
+    // 日付順にソート
+    const sortedEntries = [...this.entries].sort(
+      (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+
+    let streak = 0;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let currentDate = new Date(today);
+
+    // 今日または昨日から開始して連続日数をカウント
+    for (let i = 0; i < sortedEntries.length; i++) {
+      const entryDate = new Date(sortedEntries[i].date);
+      entryDate.setHours(0, 0, 0, 0);
+
+      // 現在の日付と一致するかチェック
+      if (entryDate.getTime() === currentDate.getTime()) {
+        streak++;
+        currentDate.setDate(currentDate.getDate() - 1);
+      } else if (entryDate.getTime() < currentDate.getTime()) {
+        // 日付が飛んでいる場合は連続終了
+        break;
+      }
+    }
+
+    return streak;
+  }
+
+  private calculateMonthlyPosts(): number {
+    const now = new Date();
+    const currentMonth = now.getMonth();
+    const currentYear = now.getFullYear();
+
+    return this.entries.filter(entry => {
+      const entryDate = new Date(entry.date);
+      return (
+        entryDate.getMonth() === currentMonth &&
+        entryDate.getFullYear() === currentYear
+      );
+    }).length;
+  }
+
+  // Service Worker registration for persistent reminders
+  private async registerServiceWorker(): Promise<void> {
+    if ('serviceWorker' in navigator) {
+      try {
+        const registration = await navigator.serviceWorker.register('/sw.js');
+        console.log('Service Worker registered:', registration);
+
+        // Send reminder settings to service worker
+        if (registration.active) {
+          registration.active.postMessage({
+            type: 'SCHEDULE_REMINDER',
+            payload: {
+              time: this.reminderTime,
+              enabled: this.reminderEnabled,
+            },
+          });
+        }
+      } catch (error) {
+        console.log('Service Worker registration failed:', error);
+      }
+    }
   }
 
   private clearFilters() {
